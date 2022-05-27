@@ -6,7 +6,7 @@ En este repositorio se encuentra todo lo relacionado con la asignatura *Aprendiz
 
 ### Datos del proyecto
 
-**Nombre:**: Reforzando el Lenguaje
+**Nombre**: Reforzando el Lenguaje
 **Repositorio**: [https://github.com/CSProjectsAvatar/ml](https://github.com/CSProjectsAvatar/ml)
 **Reporte**: [https://github.com/CSProjectsAvatar/ml/blob/main/README.md](https://github.com/CSProjectsAvatar/ml/blob/main/README.md)
 
@@ -22,7 +22,7 @@ Hasta ahora se ha pensado en 2 enfoques de atacar el problema, el primero, como 
 
 - Omar Alejandro Hernandez Ramirez (@OmarHernandez99)(@omaro43)
 - Andy Ledesma Garcia (@MakeMake23)(@@andyRsdEla)
-- Aylín Álvarez Santos (@Chains99)(@Chains99)
+- Aylín Alvarez Santos (@Chains99)(@Chains99)
 
 ### Otras asignaturas o investigación en los que impacte el proyecto
 Este proyecto formará parte de la investigación para la tesis de @OmarHernandez99, tutoreado por @apiad y el profe Sadan.

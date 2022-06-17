@@ -14,7 +14,19 @@ oC_Match :  (OPTIONAL)? MATCH oC_Pattern ( oC_Where )? ;
 oC_Pattern :  oC_NodePattern (oC_RelationshipPattern  oC_NodePattern)*;
 
 oC_NodePattern
-           : '(' ( oC_Variable  )? ( oC_NodeLabels  )? ( oC_Properties  )? ')';
+           : '('  ID? ( oC_NodeLabels  )? ( oC_Properties  )? ')'; // (p:Person {name:'John', age:30})
+
+oC_NodeLabels
+    : (':' ID)+
+    ;
+
+oC_Properties
+    : '{' key_value ( ',' key_value )* '}'
+    ;
+
+key_value
+    : ID ':' literal
+    ;
 
 oC_RelationshipPattern
                    :  ( oC_LeftArrowHead  oC_Dash  oC_RelationshipDetail?  oC_Dash  oC_RightArrowHead ) // <-[]->
@@ -24,15 +36,27 @@ oC_RelationshipPattern
                        ;
 
 oC_RelationshipDetail
-                  :  '['  ( oC_Variable  )? ( oC_RelationshipTypes  )? ( oC_Properties  )? ']' ;
+                  :  '['  ID? ( oC_RelationshipTypes  )? ( oC_Properties  )? ']' ; // [r:Eats|Plays|Enjoys {type: 'fun'}]
 
+oC_RelationshipTypes
+    : ':' ID ('|' ':'? ID)*
+    ;
 
 oC_Return :  RETURN oC_ProjectionBody ;
 
 oC_ProjectionBody
               :  (  DISTINCT )?  oC_ProjectionItems (  oC_Order )? ( oC_Skip )? (  oC_Limit )? ;
 
-oC_Order :  ORDER  BY ORDER;
+oC_ProjectionItems
+    : projection ( ',' projection )*
+    ;
+
+projection
+    : ID
+    | attr
+    ;
+
+oC_Order :  ORDER BY attr ( 'ASCENDING' | 'ASC' | 'DESCENDING' | 'DESC' )? ;
 
 oC_Skip :  L_SKIP  oC_Expression ;
 oC_Where :  WHERE  oC_Expression ;
@@ -55,10 +79,18 @@ cmp:
     atom (('<'|'>')'='? | '=') atom | // <, >, <=, >= or =
     ;
 
-atom:
-    NUMBER |
-    STRING |
-    ID '.' ID // attribute accessor
+atom
+    : literal
+    | attr
+    ;
+
+attr
+    : ID '.' ID // attribute accessor
+    ;
+
+literal
+    : NUMBER
+    | STRING
     ;
 
 // lexer rules

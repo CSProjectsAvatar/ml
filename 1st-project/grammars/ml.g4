@@ -14,7 +14,7 @@ condition:
 
 conj: 
     conj 'and' conj
-    | ATTR 'in' query
+    | ATTR 'in' '(' query ')'  
     | ATTR '=' ATTR
     | ATTR 'like' PATTERN
     ;

@@ -19,3 +19,29 @@ Uno de ellos es que hay estructuras en el arbol que se pueden repetir, del tipo:
 Otro problema es que no creemos que el modelo logre "entender" esa representacion bien, ya que no estan claros conceptos como el de profundidad.
 
 Otra idea que nos surgio fue representar el arbol como algo relacionado con parentesis anidados, que representa mejor conceptos como la profundidad, y las relaciones padre-hijo en un arbol, esta idea esta en proceso todavia.
+
+Ahora en proceso de hacer el modelo, buscamos como coger toda la informacion que provee spacy. Vamos a tener en cuenta primeramente el atributo `pos` de los tokens, que viene con clasificaciones como: 'ADJ', 'ADV', 'CONJ', etc.
+Creemos que esa es informacion util, luego valoraremos la necesidad de agregar la informacion referente al grafo de dependencias.
+
+Una idea para usar el arbol de dependencias que da spacy, es darle al modelo la lista de los ancestros de cada palabra en el arbol, asi se le da informacion de relacion directa, indirecta y profundidad a la vez.
+
+Lo que hicimos ahora fue agregarle a cada palabra la lista de tags que me da spacy, lemma, posicion en la oracion, etc., e hicimos un analisis de entidades y sustituimos los grupos de palabras que representan entidades por un span con estas. 
+
+A esto pensamos agregarle la informacion recibida por el Oraculo y darselo al modelo. Un ej del input hasta ahora:
+
+Dado una query: 'Actors who have acted in the movies directed by Christopher Nolan'
+La data que estariamos dandole al modelo seria:
+
+Texto, Lexema, Parte Or., Depnd, Alpha?, StopW?
+['Actors', 'actor', 'NOUN', 'NNS', 'ROOT', True, False]
+['who', 'who', 'PRON', 'WP', 'nsubj', True, True]
+['have', 'have', 'AUX', 'VBP', 'aux', True, True]
+['acted', 'act', 'VERB', 'VBN', 'relcl', True, False]
+['in', 'in', 'ADP', 'IN', 'prep', True, True]
+['the', 'the', 'DET', 'DT', 'det', True, True]
+['movies', 'movie', 'NOUN', 'NNS', 'pobj', True, False]
+['directed', 'direct', 'VERB', 'VBN', 'acl', True, False]
+['by', 'by', 'ADP', 'IN', 'agent', True, True]
+['Christopher Nolan', 'ENTITY', 'PERSON']
+
+Estamos pensando si removerle las ultimas 2 columnas, ya que que una palabra sea alphanumerica no parece ser de mucha informacion.

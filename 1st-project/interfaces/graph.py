@@ -3,21 +3,26 @@ from typing import List
 
 
 class GraphInteract(ABC):
-    '''Graph interactor.'''
+    """Graph interactor."""
     @abstractmethod
     def get_entities(self) -> List[str]:
-        '''Returns entities names in lowercase.'''
-        pass
+        """Returns entities names in lowercase."""
+        raise NotImplementedError()
 
     @abstractmethod
     def get_relations(self) -> List[str]:
-        '''Returns relations names in lowercase.'''
-        pass
+        """Returns relations names in lowercase."""
+        raise NotImplementedError()
 
     @abstractmethod
     def get_attributes(self) -> List[str]:
-        '''Returns attributes names in lowercase.'''
-        pass
+        """Returns attributes names in lowercase."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def attrs(self, type_name: str) -> List[str]:
+        """Returns attributes of type_name (relation or entity label) in lowercase."""
+        raise NotImplementedError()
 
 
 class FakeGraphInteract(GraphInteract):
@@ -34,3 +39,7 @@ class FakeGraphInteract(GraphInteract):
 
     def get_attributes(self) -> List[str]:
         return self.attributes
+
+    def attrs(self, type_name: str) -> List[str]:
+        """Returns attributes of type_name (relation or entity label) in lowercase."""
+        raise NotImplementedError()

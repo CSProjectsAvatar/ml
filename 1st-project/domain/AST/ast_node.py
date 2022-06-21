@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List,Tuple
+from typing import List,Tuple, Optional
 
 
 class AstNode(ABC):
@@ -24,8 +24,8 @@ class NodeLabel(Identifier):
 
 @dataclass
 class NodePattern(AstNode):
-    variable:  VarName
-    nodeLabels: List[NodeLabel]
+    variable:  str
+    nodeLabels: List[str]
     properties: 
     pass
 
@@ -40,8 +40,8 @@ class Pattern(AstNode):
 class Match(AstNode):
     optional:bool
     pattern:Pattern
-    where_: Where 
-    
+    where_: Optional[Where]
+
 
 
 

@@ -1,57 +1,34 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from distutils.util import change_root
-from tkinter import CHAR
-from typing import List,Tuple, Optional
+from enum import Enum
+from typing import List,Tuple, Optional, Union
 
 
 class AstNode(ABC):
     pass
 
 @dataclass
-class Identifier: # Abstract
-    name:str
-
-class VarName(Identifier):
-    pass
-
 class Literal(AstNode):
-    pass
+    value: str
 
-class NodeLabel(Identifier):
-    pass
-
-@dataclass
-class Limit(AstNode):
-    number: int
 
 @dataclass
 class NodePattern(AstNode):
-    variable:  VarName
-    nodeLabels: List[NodeLabel]
-    properties: List[Tuple[VarName, Literal]]
+    variable:  Optional[str]
+    nodeLabels: Optional[List[str]]
+    properties: Optional[List[Tuple[str, Literal]]]
 
-@dataclass
-class AttributeAccessor(AstNode):
-    pass
-
-@dataclass
-class Order:
-    ascending: bool
-    attribute: AttributeAccessor
 
 @dataclass
 class RelationDetails(AstNode):
-    details: List[Tuple[VarName, Literal]]
-    relationNames: List[Identifier]
+    details: Optional[List[Tuple[str, Literal]]]
+    relationNames: Optional[List[str]]
+
 
 @dataclass
-class Projection(AstNode):
-    pass
-@dataclass
 class RelationPattern(AstNode):
-    rarrow: bool
-    larrow: bool
+    rarrow: Optional[bool]
+    larrow: Optional[bool]
     relationDetails: RelationDetails
 
 @dataclass
@@ -64,13 +41,29 @@ class Pattern(AstNode):
 class Atom(AstNode):
     pass
 
+@dataclass
+class AttributeAccessor(Atom):
+    target: str
+    property: str
 
+@dataclass
+class Order:
+    ascending: Optional[bool]
+    attribute: AttributeAccessor
 
 @dataclass
 class Comparison(AstNode):
+    class Operator(Enum):
+        GREATER = 1
+        LESS = 2
+        GEQ = 3
+        LEQ = 4
+        EQ = 5
+
     left: Atom
     right: Atom
-    operation: CHAR
+    operation: Operator
+    
 
 @dataclass
 class Conjunction(AstNode):
@@ -80,20 +73,19 @@ class Conjunction(AstNode):
 class Condition(AstNode):
     conjunctions: List[Conjunction]
 
-class Where(AstNode):
-    condition: Condition
-
 @dataclass
 class Match(AstNode):
     optional: bool
     pattern: Pattern
-    where_: Where 
+    where_: Optional[Condition]
 
+@dataclass
 class Return(AstNode):
     distinct: Optional[bool]
-    limit: Optional[Limit]
+    limit: Optional[int]
     skip: Optional[Condition]
-    projections: List[Projection]
+    projections: List[Union[str, AttributeAccessor]]
+    order: Optional[Order]
 
 @dataclass
 class SingleQuery(AstNode):

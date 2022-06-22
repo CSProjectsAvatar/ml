@@ -27,8 +27,8 @@ class RelationDetails(AstNode):
 
 @dataclass
 class RelationPattern(AstNode):
-    rarrow: Optional[bool]
-    larrow: Optional[bool]
+    rarrow: bool
+    larrow: bool
     relationDetails: RelationDetails
 
 @dataclass

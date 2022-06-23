@@ -1,7 +1,9 @@
 from typing import Iterable
 
+import more_itertools
+
 from domain.AST.ast_node import SingleQuery, Match, Pattern, NodePattern, RelationPattern, RelationDetails, Return, \
-    Condition, Conjunctive, Comparison, Literal, AttrAccessor, Order
+    Condition, Conjunction, Comparison, Literal, AttributeAccessor, Order
 from interfaces.graph import GraphInteract
 from usecases.visitor import visitor
 
@@ -13,8 +15,7 @@ class AstCtx:
     """Context for AST traversal."""
     def labels(self) -> Iterable[str]:
         """Gets all defined labels till now."""
-        for _, v in self._labels:
-            yield from v
+        return more_itertools.flatten(self._labels.values())
 
     def labels_of(self, variable: str) -> Iterable[str]:
         """Gets all types (labels) of a variable."""
@@ -65,7 +66,7 @@ class QueryGen:
             kvs = (f'{key} is \"{literal.value}\"' for (key, literal) in n.properties)
             ans += ', '.join(kvs)
 
-        return ans
+        return ans + ' '
 
     @visitor(RelationPattern)
     def visit(self, r: RelationPattern) -> str:
@@ -76,41 +77,48 @@ class QueryGen:
         elif r.rarrow:
             ans = 'from left to right '
 
-        return ans + self.visit(r.details)
+        return ans + self.visit(r.relationDetails)
 
     @visitor(RelationDetails)
     def visit(self, r: RelationDetails) -> str:
         ans = ''
-        if r.labels:
-            ans = 'called ' + ' or '.join(map(lambda l: f'\"{l}\"', r.labels))
-            self.ctx.define(r.variable, r.labels)
+        if r.relationNames:
+            ans = 'called ' + ' or '.join(map(lambda l: f'\"{l}\"', r.relationNames))
+            self.ctx.define(r.variable, r.relationNames)
 
-        if r.properties:
+        if r.details:
             ans += ', which '
-            kvs = (f'{key} is \"{literal.value}\"' for (key, literal) in r.properties)
+            kvs = (f'{key} is \"{literal.value}\"' for (key, literal) in r.details)
             ans += ', '.join(kvs)
 
-        return ans
+        return ans + ' '
 
     @visitor(Condition)
     def visit(self, cond: Condition) -> str:
-        return ' or '.join(map(lambda c: self.visit(c), cond.conjs)) + ' '
+        return ' or '.join(map(lambda c: self.visit(c), cond.conjunctions)) + ' '
 
-    @visitor(Conjunctive)
-    def visit(self, conj: Conjunctive) -> str:
-        return ' and '.join(map(lambda c: self.visit(c), conj.cmps)) + ' '
+    @visitor(Conjunction)
+    def visit(self, conj: Conjunction) -> str:
+        return ' and '.join(map(lambda c: self.visit(c), conj.comparisons)) + ' '
 
     @visitor(Comparison)
     def visit(self, cmp: Comparison) -> str:
-        return f'{self.visit(cmp.left)} {cmp.op} {self.visit(cmp.right)} '
+        op_str = {
+            Comparison.Operator.EQ: '=',
+            Comparison.Operator.GEQ: '>=',
+            Comparison.Operator.LEQ: '<=',
+            Comparison.Operator.GREATER: '>',
+            Comparison.Operator.LESS: '<'
+        }
+        return f'{self.visit(cmp.left)} {op_str[cmp.operation]} {self.visit(cmp.right)} '
 
     @visitor(Literal)
     def visit(self, lit: Literal) -> str:
         return f'\"{lit.value}\"'
 
-    @visitor(AttrAccessor)
-    def visit(self, a: AttrAccessor) -> str:
-        attr = a.attr.lower()
+    @visitor(AttributeAccessor)
+    def visit(self, a: AttributeAccessor) -> str:
+        attr = a.property.lower()
         count = 0  # holds in how many types the attribute is
         for t in self.ctx.labels():
             if attr in self.graph.attrs(t):
@@ -143,12 +151,12 @@ class QueryGen:
 
         projs_str = []
         for p in r.projections:
-            if isinstance(p, AttrAccessor):
+            if isinstance(p, AttributeAccessor):
                 projs_str.append(self.visit(p))
             elif isinstance(p, str):
                 types = self.ctx.labels_of(p)
                 types_str = ', '.join(map(lambda t: f'\"{t}\"', types))
-                pstr = 'all from any entity under the categor' + ('ies' if len(types) > 1 else 'y') + ' '
+                pstr = 'all from any entity under the categor' + ('ies' if more_itertools.quantify(types) > 1 else 'y') + ' '
                 projs_str.append(pstr + types_str)
 
         ans += ', '.join(projs_str) + ' '
@@ -160,9 +168,9 @@ class QueryGen:
 
     @visitor(Order)
     def visit(self, o: Order) -> str:
-        ans = 'sorted by ' + self.visit(o.order_by) + ' '
+        ans = 'sorted by ' + self.visit(o.attribute) + ' '
 
-        if not o.asc:
+        if not o.ascending:
             ans += 'in descending order '
 
         return ans

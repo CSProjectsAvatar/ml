@@ -23,6 +23,7 @@ class NodePattern(AstNode):
 class RelationDetails(AstNode):
     details: Optional[List[Tuple[str, Literal]]]
     relationNames: Optional[List[str]]
+    variable: Optional[str]
 
 
 @dataclass

@@ -1,7 +1,10 @@
+import itertools
 from typing import Iterable
 
+import more_itertools
+
 from domain.AST.ast_node import SingleQuery, Match, Pattern, NodePattern, RelationPattern, RelationDetails, Return, \
-    Condition, Conjunctive, Comparison, Literal, AttrAccessor, Order
+    Condition, Conjunctive, Comparison, Literal, AttrAccessor, Order, AstNode
 from interfaces.graph import GraphInteract
 from usecases.visitor import visitor
 
@@ -167,3 +170,136 @@ class QueryGen:
 
         return ans
 
+
+class AstGen:
+    def __init__(self, graph_mngr: GraphInteract):
+        self.graph = graph_mngr
+
+    """Generates all the valid ASTs."""
+    @visitor(SingleQuery)
+    def visit(self, sq: SingleQuery) -> Iterable[SingleQuery]:
+        for match in self.visit(Match(False, None, None)):
+            for return_ in self.visit(Return(False, None, None, None, None)):
+                yield SingleQuery(match=match, return_=return_)
+
+    @visitor(Match)
+    def visit(self, m: Match) -> Iterable[Match]:
+        for p in self.visit(Pattern(False, None, None, None)):
+            for w in self.visit(Condition(False, None)):
+                yield Match(False, pattern=p, where_=w)
+                yield Match(True, pattern=p, where_=w)
+
+    @visitor(Return)
+    def visit(self, _) -> Iterable[Return]:
+        proj_take = 3  # max projections to create
+        limit_top = 10  # limit property will take values from 1 to limit_top
+
+        for ptake in range(proj_take+1):
+            projs = take(ptake, self.visit(Projection()))
+
+            yield Return(distinct=True, projections=projs, order=None, skip=None, limit=None)
+            yield Return(distinct=False, projections=projs, order=None, skip=None, limit=None)
+
+            for o in self.visit(Order()):
+                yield Return(distinct=True, projections=projs, order=o, skip=None, limit=None)
+                yield Return(distinct=False, projections=projs, order=o, skip=None, limit=None)
+
+                for s in self.visit(Condition()):  # skip
+                    yield Return(distinct=True, projections=projs, order=o, skip=s, limit=None)
+                    yield Return(distinct=False, projections=projs, order=o, skip=s, limit=None)
+
+                    for limit in range(1, limit_top+1):
+                        yield Return(distinct=True, projections=projs, order=o, skip=s, limit=limit)
+                        yield Return(distinct=False, projections=projs, order=o, skip=s, limit=limit)
+
+    @visitor(Pattern)
+    def visit(self, _) -> Iterable[Pattern]:
+        relation_node_take = 3
+        for fst_node in self.visit(NodePattern('', [])):
+            for rntake in range(relation_node_take+1):
+                rand_prod = more_itertools.random_product(self.visit(NodePattern('', [])), self.visit(RelationPattern()), repeat=rntake)
+                tail = [(rand_prod[2*i], rand_prod[2*i+1]) for i in range(rntake)]
+
+                yield Pattern(fst_node, tail)
+
+    @visitor(NodePattern)
+    def visit(self, _) -> Iterable[NodePattern]:
+        label_take = 3
+        props_take = 3
+        varname = self.ctx.var_name()  # next available variable number
+        for labtake in range(label_take+1):
+            labels = self.graph.rand_entity_labels(labtake)
+
+            yield NodePattern(nodeLabels=labels, variable=None, properties=None)
+
+            for ptake in range(props_take+1):
+                props = more_itertools.flatten((self.graph.attrs(l) for l in labels))
+                val_iters = (self.graph.values_of(p) for p in props)
+                vals = more_itertools.random_product(*val_iters, repeat=ptake)
+                for vals_for_props in map(lambda v: Literal(v), more_itertools.grouper(vals, ptake)):
+                    yield NodePattern(nodeLabels=labels, variable=varname,
+                                  properties=zip(props, vals_for_props))
+
+    @visitor(RelationPattern)
+    def visit(self, _) -> Iterable[RelationPattern]:
+        for detail in self.visit(RelationDetails()):
+            yield RelationPattern(larrow=False, details=detail, rarrow=False)
+            yield RelationPattern(larrow=True, details=detail, rarrow=False)
+            yield RelationPattern(larrow=False, details=detail, rarrow=True)
+
+    @visitor(RelationDetails)
+    def visit(self, _) -> Iterable[RelationDetails]:
+        label_take = 3
+        props_take = 3
+        varname = self.ctx.var_name()  # next available variable number
+        for labtake in range(label_take+1):
+            labels = self.graph.rand_relation_labels(labtake)
+
+            yield RelationDetails(relationLabels=labels, variable=None, properties=None)
+
+            for ptake in range(props_take+1):
+                props = more_itertools.flatten((self.graph.attrs(l) for l in labels))
+                val_iters = (self.graph.values_of(p) for p in props)
+                vals = more_itertools.random_product(*val_iters, repeat=ptake)
+                for vals_for_props in map(lambda v: Literal(v), more_itertools.grouper(vals, ptake)):
+                    yield RelationDetails(relationLabels=labels, variable=varname,
+                                      properties=zip(props, vals_for_props))
+
+    @visitor(Condition)
+    def visit(self, _) -> Iterable[Condition]:
+        max_conjs = 3
+        for conj_take in range(max_conjs+1):
+            yield Condition(more_itertools.random_product(self.visit(Conjunctive()), repeat=conj_take))
+
+    @visitor(Conjunctive)
+    def visit(self, _) -> Iterable[Conjunctive]:
+        max_cmps = 3
+        for cmps_take in range(max_cmps+1):
+            yield Conjunctive(more_itertools.random_product(self.visit(Comparison()), repeat=cmps_take))
+
+    @visitor(Comparison)
+    def visit(self, _) -> Iterable[Comparison]:
+        for op in operators:
+            for left in self.visit(Atom()):
+                for right in self.visit(Atom()):
+                    yield Comparison(left=left, operation=op, right=right)
+
+    @visitor(Atom)
+    def visit(self, _) -> Iterable[Atom]:
+        return itertools.chain(['New York', 5, 'Havana', 23, 35, 'Texas'], self.visit(AttrAccessor()))
+
+    @visitor(Projection)
+    def visit(self, _) -> Iterable[Projection]:
+        return itertools.chain(self.ctx.defined_vars(), self.visit(AttrAccessor()))
+
+    @visitor(AttrAccessor)
+    def visit(self, _) -> Iterable[AttrAccessor]:
+        for v in self.ctx.defined_vars():
+            for l in self.ctx.labels_of(v):
+                for attr in self.graph.attrs(l):
+                    yield AttrAccessor(target=v, attribute=attr)
+
+    @visitor(Order)
+    def visit(self, _) -> Iterable[Order]:
+        yield Order(False)
+        yield Order(True)

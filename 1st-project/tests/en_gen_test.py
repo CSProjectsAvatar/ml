@@ -1,9 +1,11 @@
 import unittest
 
+import more_itertools
+
 from domain.AST.ast_node import SingleQuery, Match, Pattern, NodePattern, Literal, RelationPattern, RelationDetails, \
     Return, AttributeAccessor
 from interfaces.graph import FakeGraphInteract
-from usecases.cypher_visitors import QueryGen
+from usecases.cypher_visitors import QueryGen, AstGen
 
 
 class EnglishQueryGenerator(unittest.TestCase):
@@ -38,6 +40,12 @@ class EnglishQueryGenerator(unittest.TestCase):
                 )
             )
         ))
+
+    def test_ast_gen(self):
+        g = FakeGraphInteract()
+        v = AstGen(g)
+        en_v = QueryGen(g)
+        print(list(map(lambda ast: en_v.visit(ast), more_itertools.take(5, v.visit(SingleQuery(None, None))))))
 
 
 if __name__ == '__main__':

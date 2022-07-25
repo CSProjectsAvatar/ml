@@ -4,12 +4,22 @@ from enum import Enum
 from typing import List,Tuple, Optional, Union
 
 
+
 class AstNode(ABC):
     pass
 
+
 @dataclass
-class Literal(AstNode):
+class Atom(AstNode):
+    pass
+
+
+@dataclass
+class Literal(Atom):
     value: str
+
+
+
 
 
 @dataclass
@@ -38,9 +48,6 @@ class Pattern(AstNode):
     relations: List[Tuple[RelationPattern, NodePattern]]
 
 
-@dataclass
-class Atom(AstNode):
-    pass
 
 @dataclass
 class AttributeAccessor(Atom):
@@ -88,7 +95,10 @@ class Return(AstNode):
     projections: List[Union[str, AttributeAccessor]]
     order: Optional[Order]
 
+
 @dataclass
 class SingleQuery(AstNode):
     match: Match
     return_: Return
+
+

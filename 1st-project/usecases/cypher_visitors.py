@@ -4,7 +4,7 @@ from typing import Iterable
 import more_itertools
 
 from domain.AST.ast_node import SingleQuery, Match, Pattern, NodePattern, RelationPattern, RelationDetails, Return, \
-    Condition, Conjunction, Comparison, Literal, AttributeAccessor, Order, AstNode
+    Condition, Conjunction, Comparison, Literal, AttributeAccessor, Order, AstNode, Atom
 from interfaces.graph import GraphInteract
 from usecases.visitor import visitor
 
@@ -12,6 +12,7 @@ from usecases.visitor import visitor
 class AstCtx:
     def __init__(self):
         self._labels = {}
+        self._varid = 0
 
     """Context for AST traversal."""
     def labels(self) -> Iterable[str]:
@@ -24,6 +25,13 @@ class AstCtx:
 
     def define(self, name: str, labels: Iterable[str]):
         self._labels[name] = labels
+
+    def var_name(self):
+        self._varid += 1
+        return f'var{self._varid}'
+
+    def defined_vars(self) -> Iterable[str]:
+        return map(lambda name: f'var{name}', range(1, self._varid))
 
 
 class QueryGen:
@@ -157,7 +165,8 @@ class QueryGen:
             elif isinstance(p, str):
                 types = self.ctx.labels_of(p)
                 types_str = ', '.join(map(lambda t: f'\"{t}\"', types))
-                pstr = 'all from any entity under the categor' + ('ies' if more_itertools.quantify(types) > 1 else 'y') + ' '
+                pstr = 'all from any entity under the categor' \
+                       + ('ies' if more_itertools.quantify(types) > 1 else 'y') + ' '
                 projs_str.append(pstr + types_str)
 
         ans += ', '.join(projs_str) + ' '
@@ -177,9 +186,15 @@ class QueryGen:
         return ans
 
 
+class Projection(AstNode):
+    """For the sole purpose of AstGen visit."""
+    pass
+
+
 class AstGen:
     def __init__(self, graph_mngr: GraphInteract):
         self.graph = graph_mngr
+        self.ctx = AstCtx()
 
     """Generates all the valid ASTs."""
     @visitor(SingleQuery)
@@ -190,8 +205,8 @@ class AstGen:
 
     @visitor(Match)
     def visit(self, m: Match) -> Iterable[Match]:
-        for p in self.visit(Pattern(False, None, None, None)):
-            for w in self.visit(Condition(False, None)):
+        for p in self.visit(Pattern(None, None)):
+            for w in self.visit(Condition(None)):
                 yield Match(False, pattern=p, where_=w)
                 yield Match(True, pattern=p, where_=w)
 
@@ -201,16 +216,16 @@ class AstGen:
         limit_top = 10  # limit property will take values from 1 to limit_top
 
         for ptake in range(proj_take+1):
-            projs = take(ptake, self.visit(Projection()))
+            projs = more_itertools.take(ptake, self.visit(Projection()))
 
             yield Return(distinct=True, projections=projs, order=None, skip=None, limit=None)
             yield Return(distinct=False, projections=projs, order=None, skip=None, limit=None)
 
-            for o in self.visit(Order()):
+            for o in self.visit(Order(False, None)):
                 yield Return(distinct=True, projections=projs, order=o, skip=None, limit=None)
                 yield Return(distinct=False, projections=projs, order=o, skip=None, limit=None)
 
-                for s in self.visit(Condition()):  # skip
+                for s in self.visit(Condition(None)):  # skip
                     yield Return(distinct=True, projections=projs, order=o, skip=s, limit=None)
                     yield Return(distinct=False, projections=projs, order=o, skip=s, limit=None)
 
@@ -221,9 +236,9 @@ class AstGen:
     @visitor(Pattern)
     def visit(self, _) -> Iterable[Pattern]:
         relation_node_take = 3
-        for fst_node in self.visit(NodePattern('', [])):
+        for fst_node in self.visit(NodePattern('', [], properties=None)):
             for rntake in range(relation_node_take+1):
-                rand_prod = more_itertools.random_product(self.visit(NodePattern('', [])), self.visit(RelationPattern()), repeat=rntake)
+                rand_prod = more_itertools.random_product(self.visit(NodePattern('', [], properties=None)), self.visit(RelationPattern(larrow=False, rarrow=False, relationDetails=None)), repeat=rntake)
                 tail = [(rand_prod[2*i], rand_prod[2*i+1]) for i in range(rntake)]
 
                 yield Pattern(fst_node, tail)
@@ -236,22 +251,22 @@ class AstGen:
         for labtake in range(label_take+1):
             labels = self.graph.rand_entity_labels(labtake)
 
-            yield NodePattern(nodeLabels=labels, variable=None, properties=None)
+            yield NodePattern(nodeLabels=list(labels), variable=None, properties=None)
 
             for ptake in range(props_take+1):
                 props = more_itertools.flatten((self.graph.attrs(l) for l in labels))
                 val_iters = (self.graph.values_of(p) for p in props)
                 vals = more_itertools.random_product(*val_iters, repeat=ptake)
-                for vals_for_props in map(lambda v: Literal(v), more_itertools.grouper(vals, ptake)):
-                    yield NodePattern(nodeLabels=labels, variable=varname,
-                                  properties=zip(props, vals_for_props))
+                for vals_for_props in more_itertools.grouper(vals, ptake):
+                    yield NodePattern(nodeLabels=list(labels), variable=varname,
+                                  properties=list(zip(props, map(lambda vs: Literal(vs), vals_for_props))))
 
     @visitor(RelationPattern)
     def visit(self, _) -> Iterable[RelationPattern]:
-        for detail in self.visit(RelationDetails()):
-            yield RelationPattern(larrow=False, details=detail, rarrow=False)
-            yield RelationPattern(larrow=True, details=detail, rarrow=False)
-            yield RelationPattern(larrow=False, details=detail, rarrow=True)
+        for detail in self.visit(RelationDetails(None, None, None)):
+            yield RelationPattern(larrow=False, relationDetails=detail, rarrow=False)
+            yield RelationPattern(larrow=True, relationDetails=detail, rarrow=False)
+            yield RelationPattern(larrow=False, relationDetails=detail, rarrow=True)
 
     @visitor(RelationDetails)
     def visit(self, _) -> Iterable[RelationDetails]:
@@ -261,30 +276,37 @@ class AstGen:
         for labtake in range(label_take+1):
             labels = self.graph.rand_relation_labels(labtake)
 
-            yield RelationDetails(relationLabels=labels, variable=None, properties=None)
+            yield RelationDetails(relationNames=labels, variable=None, details=None)
 
             for ptake in range(props_take+1):
                 props = more_itertools.flatten((self.graph.attrs(l) for l in labels))
                 val_iters = (self.graph.values_of(p) for p in props)
                 vals = more_itertools.random_product(*val_iters, repeat=ptake)
-                for vals_for_props in map(lambda v: Literal(v), more_itertools.grouper(vals, ptake)):
-                    yield RelationDetails(relationLabels=labels, variable=varname,
-                                      properties=zip(props, vals_for_props))
+                for vals_for_props in more_itertools.grouper(vals, ptake):
+                    yield RelationDetails(relationNames=labels, variable=varname,
+                                      details=list(zip(props, map(lambda v: Literal(v), vals_for_props))))
 
     @visitor(Condition)
     def visit(self, _) -> Iterable[Condition]:
         max_conjs = 3
         for conj_take in range(max_conjs+1):
-            yield Condition(more_itertools.random_product(self.visit(Conjunctive()), repeat=conj_take))
+            yield Condition(more_itertools.random_product(self.visit(Conjunction()), repeat=conj_take))
 
-    @visitor(Conjunctive)
-    def visit(self, _) -> Iterable[Conjunctive]:
+    @visitor(Conjunction)
+    def visit(self, _) -> Iterable[Conjunction]:
         max_cmps = 3
         for cmps_take in range(max_cmps+1):
-            yield Conjunctive(more_itertools.random_product(self.visit(Comparison()), repeat=cmps_take))
+            yield Conjunction(more_itertools.random_product(self.visit(Comparison()), repeat=cmps_take))
 
     @visitor(Comparison)
     def visit(self, _) -> Iterable[Comparison]:
+        operators = [
+            Comparison.Operator.EQ,
+            Comparison.Operator.LEQ,
+            Comparison.Operator.LESS,
+            Comparison.Operator.GEQ,
+            Comparison.Operator.GREATER,
+        ]
         for op in operators:
             for left in self.visit(Atom()):
                 for right in self.visit(Atom()):
@@ -292,20 +314,20 @@ class AstGen:
 
     @visitor(Atom)
     def visit(self, _) -> Iterable[Atom]:
-        return itertools.chain(['New York', 5, 'Havana', 23, 35, 'Texas'], self.visit(AttrAccessor()))
+        return map(lambda v: Literal(str(v)), itertools.chain(['New York', 5, 'Havana', 23, 35, 'Texas'], self.visit(AttributeAccessor(None, None))))
 
     @visitor(Projection)
     def visit(self, _) -> Iterable[Projection]:
-        return itertools.chain(self.ctx.defined_vars(), self.visit(AttrAccessor()))
+        return itertools.chain(self.ctx.defined_vars(), self.visit(AttributeAccessor(None, None)))
 
-    @visitor(AttrAccessor)
-    def visit(self, _) -> Iterable[AttrAccessor]:
+    @visitor(AttributeAccessor)
+    def visit(self, _) -> Iterable[AttributeAccessor]:
         for v in self.ctx.defined_vars():
             for l in self.ctx.labels_of(v):
                 for attr in self.graph.attrs(l):
-                    yield AttrAccessor(target=v, attribute=attr)
+                    yield AttributeAccessor(target=v, property=attr)
 
     @visitor(Order)
     def visit(self, _) -> Iterable[Order]:
-        yield Order(False)
-        yield Order(True)
+        yield Order(False, None)  # todo @audit tas pasan2 None
+        yield Order(True, None)

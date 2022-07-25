@@ -26,6 +26,16 @@ class GraphInteract(ABC):
         """Returns attributes of type_name (relation or entity label) in lowercase."""
         raise NotImplementedError()
 
+    def rand_entity_labels(self, amount: int) -> Iterable[str]:
+        """Returns the given number of random entity rabels."""
+        raise NotImplementedError()
+
+    def values_of(self, attribute: str) -> Iterable[str]:
+        raise NotImplementedError()
+
+    def rand_relation_labels(self, amount: int):
+        raise NotImplementedError()
+
 
 class FakeGraphInteract(GraphInteract):
     def __init__(self) -> None:
@@ -51,3 +61,14 @@ class FakeGraphInteract(GraphInteract):
     def attrs(self, type_name: str) -> List[str]:
         """Returns attributes of type_name (relation or entity label) in lowercase."""
         return self.attr_dict[type_name]
+
+    def rand_entity_labels(self, amount: int) -> Iterable[str]:
+        labs = more_itertools.flatten([self.attrs(e) for e in self.get_entities()])
+        return more_itertools.random_product(labs, repeat=amount)
+
+    def values_of(self, attribute: str) -> Iterable[str]:
+        return 'andy'  # todo @audit
+
+    def rand_relation_labels(self, amount: int):
+        labs = more_itertools.flatten([self.attrs(e) for e in self.get_relations()])
+        return more_itertools.random_product(labs, repeat=amount)

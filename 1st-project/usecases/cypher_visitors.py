@@ -10,11 +10,12 @@ from usecases.visitor import visitor
 
 
 class AstCtx:
+    """Context for AST traversal."""
+
     def __init__(self):
         self._labels = {}
         self._varid = 0
 
-    """Context for AST traversal."""
     def labels(self) -> Iterable[str]:
         """Gets all defined labels till now."""
         return more_itertools.flatten(self._labels.values())

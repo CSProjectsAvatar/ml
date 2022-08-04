@@ -4,7 +4,7 @@ graph TD
     A --- C(return)
     B --- D{optional?}
     B --- E(pattern)
-    B --- F(where?)
+    B --- F{where?}
     F --- X
     E --- G(node pattern)
     E --- H{list of tuples of:}
@@ -33,8 +33,7 @@ graph TD
     Cmp --- CmpOper{operation}
     Cmp --- |left| Atom(atom)
     Cmp --- |right| Atom
-    C --- V(limit?)
-    V --- W{number}
+    C --- V{limit?}
     Atom --> Lit(literal)
     Atom --> Prop(attribute accessor)
     T --- Ord{ascending?}

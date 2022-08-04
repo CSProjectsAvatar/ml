@@ -26,3 +26,14 @@ Hasta ahora se ha pensado en 2 enfoques de atacar el problema, el primero, como 
 
 ### Otras asignaturas o investigación en los que impacte el proyecto
 Este proyecto formará parte de la investigación para la tesis de @OmarHernandez99, tutoreado por @apiad y el profe Sadan.
+
+### Para Desarrolladores
+En `1st-project/domain/` están los nodos del AST  y el enum del posible rol que puede tener una palabra en una BD de grafo.
+
+En `1st-project/grammars/` se encuentra definida la gramática y se ilustra su AST en `ast-query-cypher.pdf`
+
+En `1st-project/interfaces/` está la clase abstracta `GraphInteract` que es una API para obtener información de la BD de grafo. Se debe refactorizar ese archivo porque no debe ir en esa carpeta. Hay también una implementación de prueba en el archivo `graph.py`. Se requiere que exista una implementación verdadera en `1st-project/interfaces/` o en `1st-project/infrastruct/`.
+
+En `1st-project/usecases/cypher_visitors.py` se encuentran los visitantes del AST: uno para generar una consulta en inglés y otro para generar ASTs. El primero corre bien pero no ha sido probado lo suficiente; mientras que el segundo todavía no corre pero la idea está implementada. En ambos se puede apreciar cómo implementar un visitante mediante el empleo del decorador `visitor` definido en `1st-project/usecases/visitor.py`.
+
+`WordGraphClassf` (archivo `1st-project/usecases/graphrole_interact.py`) es una clase que determina el rol de una palabra en al grafo.

@@ -18,11 +18,20 @@ class SpacyParser(SemParser):
         for token in doc:
             tagList.append([token.text, token.lemma_, token.pos_, token.tag_, token.dep_, token.is_alpha, token.is_stop])
 
-        # Substite taglist from ent.start to ent.end with the entity info
+        # Substitute taglist from ent.start to ent.end with the entity info
         words_less = 0
         for ent in doc.ents:
             tagList = tagList[:ent.start - words_less] + [[ent.text,'ENTITY', ent.label_]] + tagList[ent.end - words_less:]
             words_less += ent.end - ent.start - 1
 
+        parent_list = __get_parent_tags(doc)
+        print(parent_list)
+        
         return tagList
 
+    def __get_parent_tags(self, spacy_doc):
+        parent = {}
+        # Get the parent of each token
+        for token in doc:
+            for children in token.children:
+                parent[children] = token.text

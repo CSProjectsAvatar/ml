@@ -45,3 +45,18 @@ Texto, Lexema, Parte Or., Depnd, Alpha?, StopW?
 ['Christopher Nolan', 'ENTITY', 'PERSON']
 
 Estamos pensando si removerle las ultimas 2 columnas, ya que que una palabra sea alphanumerica no parece ser de mucha informacion.
+
+Nos sentamos despues a modelar como ibamos a pedirle el output al modelo, llegamos a que ibamos a tener una plantilla, estilo vector, que iba a representar un arbol instanciado. Entonces lo que hariamos seria como un problema de clasificacion donde a cada palabra de la query le iba a corresponder un numero, que representaba una posicion en el AST instanciado. 
+
+El problema con la idea anterior era que el AST objetivo, podia ser mas rico que poner las palabras de la query en lugares del AST, por ejemplo en la query: "Where is the Capitol", se desearia que se preguntara por la propiedad Location de la entidad con nombre capitol, y eso no se puede lograr con el aproach actual.
+
+Despues de analizar esta situacion con la ayuda del profe se llego a otro posible modelo. La idea seria tener un model sampler, random que me de un arbol instanciado: y*, y un regresor que me evalue cuan correcto esta un arbol, entre 0 y 1, dado una query e informacion minima sobre la base de datos en cuestion. 
+Entonces dado como entrada los 3 conjuntos de informacion expuestos, el modelo me diria cuan certero es Y* para esa Query, en esa Base de Datos:
+
+    X1, X2, Y* --> [0,1]
+
+Despues de analizar un poco la propuesta anterior, pensamos que seria muy costoso buscar en el espacio de busqueda de todos los posibles arboles, y vamos a hacer que el modelo nos de a Y*:
+
+    X1, X2 --> Y*
+
+    
